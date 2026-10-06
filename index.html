@@ -1,119 +1,669 @@
-<!doctype html>
-<html lang="fr"><head>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b5ea8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1e4f77">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
-<title>Suivi neige de culture</title>
+<title>Maintenance neige de culture</title>
 <style>
-:root{color-scheme:light dark;--c:#0b5ea8}
-*{box-sizing:border-box}
-body{font:16px system-ui,sans-serif;margin:0 auto;padding:12px;max-width:560px}
-h1{font-size:1.2rem;margin:.2rem 0 .8rem}
-label{display:block;margin:.7rem 0 .2rem;font-weight:600}
-input,select,textarea,button{width:100%;font:inherit;padding:.7rem;border-radius:8px;border:1px solid #8886}
-button{background:var(--c);color:#fff;border:0;font-weight:600;margin-top:.6rem}
-#fiche{padding:.6rem;border-radius:8px;background:#8882;margin-top:.6rem}
-#video{width:100%;border-radius:8px;display:none;margin-top:.6rem}
-#etat{font-size:.85rem;opacity:.8;margin-top:1rem}
-</style></head><body>
-<h1>Suivi neige de culture</h1>
-<button id="bScan">Scanner un QR code</button>
-<video id="video" playsinline muted></video>
-<label for="num">Numéro d'équipement</label>
-<input id="num" list="liste" autocomplete="off" placeholder="ex. A-R305">
-<datalist id="liste"></datalist>
-<div id="fiche" hidden></div>
-<div id="saisie" hidden>
-  <label for="tech">Technicien</label><select id="tech"></select>
-  <label for="act">Type d'action</label><select id="act"></select>
-  <label for="temps">Temps passé (heures)</label>
-  <input id="temps" type="text" inputmode="decimal" placeholder="ex. 1,5">
-  <label for="com">Commentaire</label><textarea id="com" rows="3"></textarea>
-  <button id="bSave">Enregistrer</button>
-</div>
-<button id="bSync" style="background:#8883;color:inherit">Synchroniser</button>
-<div id="etat"></div>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; color: #1c2733; background: #eef2f6; }
+  main { max-width: 460px; margin: 0 auto; padding: 16px; }
+  .carte { background: #fff; border: 1px solid #d5dde6; border-radius: 12px; padding: 16px; }
+  .surtitre { font-size: 13px; color: #5b6b7b; margin: 0 0 4px; }
+  .numero { font-size: 28px; font-weight: bold; margin: 0 0 12px; color: #1e4f77; }
+  .infos { background: #eef2f6; border-radius: 8px; padding: 10px 12px; margin: 0 0 16px; }
+  .infos div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 15px; }
+  .infos span:first-child { color: #5b6b7b; }
+  label, .libelle { display: block; font-size: 14px; color: #5b6b7b; margin: 0 0 6px; }
+  select, input, textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid #b8c4d0; border-radius: 8px; background: #fff; margin: 0 0 14px; }
+  .choix { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+  .choix.serre { grid-template-columns: repeat(4, 1fr); }
+  .choix button { font: inherit; min-height: 52px; padding: 8px 4px; border: 1px solid #b8c4d0; border-radius: 8px; background: #fff; color: #1c2733; }
+  .choix button.choisi { border: 2px solid #1e4f77; background: #e3edf6; color: #1e4f77; font-weight: bold; }
+  .principal { width: 100%; font: inherit; font-weight: bold; min-height: 54px; border: 0; border-radius: 8px; background: #1e4f77; color: #fff; }
+  .principal:disabled { background: #8fa6ba; }
+  .secondaire { width: 100%; font: inherit; min-height: 48px; border: 1px solid #b8c4d0; border-radius: 8px; background: #fff; color: #1c2733; margin-top: 10px; }
+  .lien { width: 100%; font: inherit; min-height: 44px; border: 0; background: none; color: #1e4f77; text-decoration: underline; margin-top: 4px; }
+  .erreur { color: #a32d2d; font-size: 14px; margin: 0 0 12px; min-height: 18px; }
+  .note { font-size: 13px; color: #5b6b7b; text-align: center; margin: 10px 0 0; }
+  .ok { font-size: 20px; font-weight: bold; color: #27500a; margin: 0 0 8px; }
+  h2 { font-size: 15px; margin: 20px 0 8px; color: #5b6b7b; font-weight: normal; }
+  hr { border: 0; border-top: 1px solid #d5dde6; margin: 18px 0; }
+  .histo { font-size: 14px; border-top: 1px solid #d5dde6; padding: 8px 0; }
+  .histo b { display: block; }
+  .compte { font-size: 14px; color: #5b6b7b; margin: 0 0 4px; }
+  .choix.resultats { margin: 0 0 8px; }
+  .choix.resultats button { min-height: 46px; font-size: 14px; }
+  .point { border-top: 1px solid #d5dde6; padding: 12px 0 4px; }
+  .point p { margin: 0 0 8px; font-weight: bold; }
+  .retour { text-align: left; margin: 0 0 8px; }
+  a { color: #1e4f77; }
+  .avis { margin-top: 12px; }
+  .avis .carte { margin-top: 6px; }
+  .merci { font-size: 14px; color: #27500a; text-align: center; margin: 8px 0 0; min-height: 18px; }
+  .logos, .logosEq { display: flex; align-items: center; gap: 14px; margin: 0 0 12px; }
+  .logos img, .logosEq img { flex: 1 1 0; min-width: 0; width: 100%; max-height: 96px; object-fit: contain; }
+  #video { width: 100%; border-radius: 8px; display: none; margin: 0 0 12px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="logos" id="logos" hidden></div>
+  <p class="surtitre">Maintenance neige de culture</p>
+
+  <section id="secCode" class="carte" hidden>
+    <label for="code">Code équipe</label>
+    <input id="code" type="password" autocomplete="off">
+    <p class="erreur" id="errCode"></p>
+    <button class="principal" id="btnCode">Valider</button>
+    <p class="note">Demandé une seule fois sur ce téléphone.</p>
+  </section>
+
+  <section id="secCharge" class="carte" hidden>Chargement…</section>
+
+  <section id="secAccueil" class="carte" hidden>
+    <button class="secondaire" id="btnScan" style="margin: 0 0 12px;">Scanner un QR code</button>
+    <video id="video" playsinline muted></video>
+    <label for="recherche">Numéro de l'équipement</label>
+    <input id="recherche" type="text" placeholder="A-R305" autocapitalize="characters" autocomplete="off">
+    <button class="principal" id="btnRecherche">Chercher</button>
+    <hr>
+    <span class="libelle">Ou choisir dans les listes</span>
+    <select id="lSite" aria-label="Site"></select>
+    <select id="lCategorie" aria-label="Catégorie"></select>
+    <select id="lPiste" aria-label="Piste ou modèle"></select>
+    <select id="lNumero" aria-label="Numéro"></select>
+    <p class="erreur" id="errAccueil"></p>
+    <button class="principal" id="btnListes">Ouvrir cet équipement</button>
+    <hr>
+    <button class="secondaire" id="btnHors" style="margin-top: 0;">Activité hors équipement</button>
+  </section>
+
+  <section id="secForm" class="carte" hidden>
+    <div class="logosEq" id="logoSite" hidden></div>
+    <p class="numero" id="titre"></p>
+    <div class="infos" id="infos">
+      <div><span>Site</span><span id="site"></span></div>
+      <div><span>Catégorie</span><span id="categorie"></span></div>
+      <div id="ligneModele"><span>Modèle</span><span id="modele"></span></div>
+      <div id="lignePiste"><span>Piste</span><span id="piste"></span></div>
+    </div>
+    <div id="blocSiteHors" hidden>
+      <label for="siteHors">Site (facultatif)</label>
+      <select id="siteHors"></select>
+    </div>
+    <label for="technicien">Technicien</label>
+    <select id="technicien"></select>
+    <span class="libelle">Avec (facultatif, une ligne par technicien)</span>
+    <div class="choix" id="avec"></div>
+    <span class="libelle" id="libelleType">Type d'action</span>
+    <div class="choix" id="types"></div>
+    <label for="duree">Temps passé (minutes)</label>
+    <div class="choix serre" id="durees"></div>
+    <input id="duree" type="number" inputmode="numeric" min="1" placeholder="Autre durée, en minutes">
+    <label for="commentaire">Commentaire</label>
+    <textarea id="commentaire" rows="3"></textarea>
+    <p class="erreur" id="errForm"></p>
+    <button class="principal" id="btnEnregistrer">Enregistrer</button>
+    <p class="note">Date et heure ajoutées automatiquement.</p>
+    <div id="blocHisto" hidden>
+      <h2>Dernières interventions</h2>
+      <div id="histo"></div>
+      <button class="lien" id="btnFiche">Voir toute la fiche</button>
+    </div>
+    <button class="lien" id="btnChanger">Changer d'équipement</button>
+  </section>
+
+  <section id="secEntretien" class="carte" hidden>
+    <button class="lien retour" id="btnRetourAction">← Retour au choix de l'action</button>
+    <div class="logosEq" id="entLogo" hidden></div>
+    <p class="numero" id="entNumero"></p>
+    <p class="compte" id="entQui"></p>
+    <div id="entPoints"></div>
+    <p class="note" id="entVide" hidden>Aucun point de contrôle défini pour cette catégorie (onglet « Entretien annuel » du fichier de suivi). L'entretien peut quand même être enregistré.</p>
+    <hr>
+    <label for="duree2">Temps passé (minutes)</label>
+    <div class="choix serre" id="durees2"></div>
+    <input id="duree2" type="number" inputmode="numeric" min="1" placeholder="Autre durée, en minutes">
+    <label for="commentaire2">Commentaire général</label>
+    <textarea id="commentaire2" rows="3"></textarea>
+    <p class="erreur" id="errEntretien"></p>
+    <button class="principal" id="btnEnregistrerEntretien">Enregistrer l'entretien</button>
+    <p class="note">Une ligne par point et un rapport PDF sont créés (réseau nécessaire).</p>
+  </section>
+
+  <section id="secFiche" class="carte" hidden>
+    <div class="logosEq" id="ficheLogo" hidden></div>
+    <p class="numero" id="ficheNumero"></p>
+    <div class="infos">
+      <div><span>Site</span><span id="ficheSite"></span></div>
+      <div><span>Catégorie</span><span id="ficheCategorie"></span></div>
+      <div id="ficheLigneModele"><span>Modèle</span><span id="ficheModele"></span></div>
+      <div id="ficheLignePiste"><span>Piste</span><span id="fichePiste"></span></div>
+    </div>
+    <p class="compte" id="ficheCompte"></p>
+    <div id="ficheListe"></div>
+    <button class="principal" id="btnRetour" style="margin-top: 14px;">Saisir une intervention</button>
+  </section>
+
+  <section id="secOk" class="carte" hidden>
+    <p class="ok">Enregistré</p>
+    <p id="resume"></p>
+    <p id="okRapport" hidden><a id="lienRapport" target="_blank" rel="noopener">Ouvrir le rapport PDF</a></p>
+    <p class="erreur" id="okAlerte"></p>
+    <button class="secondaire" id="btnMeme">Autre saisie identique</button>
+    <button class="secondaire" id="btnAutre">Autre équipement ou activité</button>
+  </section>
+
+  <div class="avis" id="avis" hidden>
+    <button class="lien" id="btnCommenter">Commenter cette page</button>
+    <p class="merci" id="avisMerci"></p>
+    <div class="carte" id="avisBloc" hidden>
+      <label for="avisTexte" id="avisLibelle">Votre commentaire</label>
+      <textarea id="avisTexte" rows="3" placeholder="Un problème, une idée d'amélioration…"></textarea>
+      <p class="erreur" id="avisErreur"></p>
+      <button class="principal" id="btnAvisEnvoyer">Envoyer</button>
+      <button class="secondaire" id="btnAvisAnnuler">Annuler</button>
+    </div>
+  </div>
+</main>
+
 <script>
-// URL de déploiement de l'API Apps Script (…/exec) — à renseigner
-const API_URL='COLLER_URL_APPS_SCRIPT';
-const $=id=>document.getElementById(id);
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
-const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-let cfg=load('cfg',{techniciens:[],actions:[],equipements:[]});
-let file=load('file',[]);
-// Repère un numéro préfixé par site (A-, B-, F-, S-) dans un texte ou une URL
-const extraire=s=>(String(s).match(/\b[ABFS]-[A-Z0-9]+\b/i)||[])[0]?.toUpperCase();
+  /* ===== Couche PWA : google.script.run remplacé par fetch, file d'attente hors ligne ===== */
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyakyceKC0pY2xuRd3642-aKrIIyS3NVMu5ML6fSOVXbp0uoYJtl2PkMhpZBiC1zzsy/exec';
+  const p_get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
+  const p_set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const p_url = new URLSearchParams(location.search);
+  const NUMERO_SCANNE = (p_url.get('n') || '').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  const VUE = p_url.get('page') === 'fiche' ? 'fiche' : '';
+  let LOGOS = p_get('logos', []);
 
-function rendreCfg(){
-  $('liste').innerHTML=cfg.equipements.map(e=>`<option value="${esc(e.numero)}">`).join('');
-  $('tech').innerHTML=cfg.techniciens.map(t=>`<option>${esc(t)}</option>`).join('');
-  $('act').innerHTML=cfg.actions.map(a=>`<option>${esc(a)}</option>`).join('');
-  $('tech').value=localStorage.getItem('tech')||cfg.techniciens[0]||'';
-}
-function trouver(){
-  const n=$('num').value.trim().toUpperCase();
-  const e=cfg.equipements.find(x=>String(x.numero).toUpperCase()===n);
-  $('fiche').hidden=$('saisie').hidden=!e;
-  if(e)$('fiche').innerHTML=`<b>${esc(e.numero)}</b><br>${esc(e.site)} · ${esc(e.categorie)}${e.detail?' · '+esc(e.detail):''}`;
-}
-function etat(){
-  const m=load('maj',null);
-  $('etat').textContent=(navigator.onLine?'En ligne':'Hors ligne')+' · '+file.length+' saisie(s) en attente'+(m?' · config du '+new Date(m).toLocaleString('fr-FR'):'');
-}
+  async function appel(fn, args) {
+    let r;
+    try {
+      r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ fn: fn, args: args }) });
+    } catch (e) { e.reseau = true; throw e; }
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.erreur || 'Erreur serveur');
+    return j.resultat;
+  }
 
-// --- Scan QR (BarcodeDetector, Chrome Android) ---
-let flux,boucle;
-function arreter(){clearInterval(boucle);flux&&flux.getTracks().forEach(t=>t.stop());flux=null;$('video').style.display='none'}
-async function scanner(){
-  if(flux)return arreter();
-  if(!('BarcodeDetector' in window))return alert('Scan non supporté sur ce navigateur : saisis le numéro.');
-  const det=new BarcodeDetector({formats:['qr_code']});
-  try{flux=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})}catch{return alert('Accès caméra refusé.')}
-  const v=$('video');v.srcObject=flux;v.style.display='block';await v.play();
-  boucle=setInterval(async()=>{
-    const r=await det.detect(v).catch(()=>[]);
-    const n=r.length&&extraire(r[0].rawValue);
-    if(n){arreter();$('num').value=n;trouver()}
-  },300);
-}
-
-// --- Saisie (file d'attente locale) et synchronisation ---
-function enregistrer(){
-  const numero=$('num').value.trim().toUpperCase();
-  const temps=parseFloat($('temps').value.replace(',','.'));
-  if(!numero||!$('tech').value||!$('act').value||!(temps>=0))return alert('Complète technicien, action et temps (en heures).');
-  localStorage.setItem('tech',$('tech').value);
-  file.push({id:crypto.randomUUID(),horodatage:new Date().toISOString(),numero,technicien:$('tech').value,action:$('act').value,temps_h:temps,commentaire:$('com').value.trim()});
-  save('file',file);
-  $('temps').value=$('com').value=$('num').value='';
-  trouver();etat();sync();
-}
-function code(){let c=localStorage.getItem('code');if(!c){c=(prompt('Code équipe ?')||'').trim();if(c)localStorage.setItem('code',c)}return c}
-async function sync(){
-  if(!navigator.onLine||API_URL.startsWith('COLLER'))return etat();
-  const k=code();if(!k)return etat();
-  try{
-    if(file.length){
-      // text/plain évite la requête préalable CORS avec Apps Script
-      const r=await(await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saisies',code:k,items:file})})).json();
-      if(r.erreur==='code'){localStorage.removeItem('code');return etat()}
-      if(r.ok){file=file.filter(x=>!r.ids.includes(x.id));save('file',file)}
+  async function executer(fn, args) {
+    if (fn === 'enregistrer') { args[1].idPwa = crypto.randomUUID(); args[1].horodatage = new Date().toISOString(); }
+    try {
+      const res = await appel(fn, args);
+      if (fn === 'chargerDonnees' && res.equipements && res.equipements.length) p_set('accueil', res);
+      return res;
+    } catch (e) {
+      if (!e.reseau) throw e;
+      if (fn === 'enregistrer') {
+        const file = p_get('file', []); file.push(args[1]); p_set('file', file);
+        return { lignes: 0, enAttente: true };
+      }
+      if (fn === 'chargerDonnees') {
+        const c = p_get('accueil', null);
+        if (!c) throw new Error('Hors ligne : ouvrir l\'application une première fois avec du réseau.');
+        const cle = String(args[1] || '').toUpperCase().replace(/\s+/g, '');
+        const eq = cle ? c.equipements.find(x => x.numero.toUpperCase() === cle) || null : null;
+        return Object.assign({}, c, { equipement: eq, equipements: eq ? [] : c.equipements,
+          historique: [], total: 0, logosEquipement: [], points: [] });
+      }
+      throw new Error('Pas de réseau : cette action nécessite une connexion.');
     }
-    const c=await(await fetch(API_URL+'?action=config&code='+encodeURIComponent(k),{cache:'no-store'})).json();
-    if(c.erreur==='code'){localStorage.removeItem('code');return etat()}
-    if(c.equipements){cfg=c;save('cfg',c);save('maj',new Date().toISOString());rendreCfg();trouver()}
-  }catch(e){}
-  etat();
-}
+  }
 
-$('bScan').onclick=scanner;$('bSave').onclick=enregistrer;$('bSync').onclick=sync;
-$('num').addEventListener('input',trouver);
-addEventListener('online',sync);addEventListener('offline',etat);
-const depuisUrl=extraire(location.search);if(depuisUrl)$('num').value=depuisUrl;
-rendreCfg();trouver();etat();sync();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+  function p_run(ok, ko) {
+    return new Proxy({}, { get: function (_, k) {
+      if (k === 'withSuccessHandler') return function (f) { return p_run(f, ko); };
+      if (k === 'withFailureHandler') return function (f) { return p_run(ok, f); };
+      return function () {
+        executer(k, Array.prototype.slice.call(arguments)).then(r => ok && ok(r), e => ko && ko(e));
+      };
+    } });
+  }
+  const google = { script: { run: p_run(null, null) } };
+
+  let p_envoi = false;
+  async function envoyerFile() {
+    const code = localStorage.getItem('codeEquipe');
+    if (p_envoi || !navigator.onLine || !code) return;
+    p_envoi = true;
+    try {
+      const file = p_get('file', []);
+      while (file.length) {
+        try { await appel('enregistrer', [code, file[0]]); }
+        catch (e) {
+          if (e.reseau || String(e.message).indexOf('CODE') !== -1) break;
+          p_set('rejets', p_get('rejets', []).concat([file[0]]));   // refusée par le serveur : mise de côté
+        }
+        file.shift(); p_set('file', file);
+      }
+    } finally { p_envoi = false; }
+  }
+  function rafraichirCache() {
+    const code = localStorage.getItem('codeEquipe');
+    if (code && navigator.onLine) executer('chargerDonnees', [code, '']).catch(() => {});
+  }
+
+  /* ===== Application (reprise de la page de saisie) ===== */
+  const SECTIONS = ['secCode', 'secCharge', 'secAccueil', 'secForm', 'secEntretien', 'secFiche', 'secOk'];
+  const DUREES = [15, 30, 60, 120];
+
+  let numeroCourant = NUMERO_SCANNE;
+  let ouvrirFicheAuChargement = (VUE === 'fiche');
+  let donnees = null, equipement = null, modeHors = false, typeChoisi = '', avecChoisis = [], etatPoints = [];
+
+  const el = id => document.getElementById(id);
+  let vueCourante = '';
+  function montrer(id) {
+    SECTIONS.forEach(s => { el(s).hidden = (s !== id); });
+    vueCourante = id;
+    el('avis').hidden = (id === 'secCode' || id === 'secCharge');
+    el('avisBloc').hidden = true;
+    el('avisMerci').textContent = '';
+    window.scrollTo(0, 0);
+  }
+  function nomVue() {
+    if (vueCourante === 'secForm') return modeHors ? 'Saisie hors équipement' : 'Saisie';
+    return { secAccueil: 'Accueil', secEntretien: 'Entretien annuel',
+             secFiche: 'Fiche équipement', secOk: 'Confirmation' }[vueCourante] || vueCourante;
+  }
+  function lire(cle) { try { return localStorage.getItem(cle) || ''; } catch (e) { return ''; } }
+  function ecrire(cle, v) { try { localStorage.setItem(cle, v); } catch (e) {} }
+  function oublier(cle) { try { localStorage.removeItem(cle); } catch (e) {} }
+  function uniques(liste) { return liste.filter((v, i) => v && liste.indexOf(v) === i); }
+
+  function afficherLogos(id, images) {
+    const zone = el(id);
+    zone.innerHTML = '';
+    (images || []).forEach(image => {
+      const img = document.createElement('img');
+      img.src = image; img.alt = '';
+      zone.appendChild(img);
+    });
+    zone.hidden = !(images && images.length);
+  }
+  function texteDuree(minutes) {
+    if (!minutes) return '';
+    const h = Math.floor(minutes / 60), m = minutes % 60;
+    if (h === 0) return m + ' min';
+    return h + ' h' + (m ? ' ' + (m < 10 ? '0' + m : m) : '');
+  }
+  function remplirSelect(select, valeurs, premier) {
+    select.innerHTML = '';
+    [''].concat(valeurs).forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v || premier;
+      select.appendChild(o);
+    });
+  }
+  function boutons(zone, valeurs, multiple, surChoix, libelle) {
+    zone.innerHTML = '';
+    valeurs.forEach(v => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = libelle ? libelle(v) : v;
+      b.dataset.valeur = v;
+      b.onclick = function () {
+        if (multiple) b.classList.toggle('choisi');
+        else Array.prototype.forEach.call(zone.children, c => c.classList.toggle('choisi', c === b));
+        surChoix(actifs(zone));
+      };
+      zone.appendChild(b);
+    });
+  }
+  function actifs(zone) {
+    return Array.prototype.filter.call(zone.children, c => c.classList.contains('choisi')).map(c => c.dataset.valeur);
+  }
+  function surErreur(cible, section) {
+    return function (err) {
+      const message = (err && err.message) || String(err);
+      if (message.indexOf('CODE') !== -1) {
+        oublier('codeEquipe');
+        el('errCode').textContent = 'Code incorrect.';
+        montrer('secCode');
+        return;
+      }
+      el('btnEnregistrer').disabled = false;
+      el('btnEnregistrerEntretien').disabled = false;
+      el(cible).textContent = message;
+      montrer(section);
+    };
+  }
+
+  /* ---------- Chargement ---------- */
+  function charger() {
+    const code = lire('codeEquipe');
+    if (!code) { montrer('secCode'); return; }
+    montrer('secCharge');
+    google.script.run.withSuccessHandler(afficher)
+      .withFailureHandler(surErreur('errAccueil', 'secAccueil')).chargerDonnees(code, numeroCourant);
+  }
+  function afficher(d) {
+    donnees = d;
+    if (!d.equipement) {
+      ouvrirFicheAuChargement = false;
+      afficherAccueil(numeroCourant ? 'Numéro introuvable ou ambigu : ' + numeroCourant + '. Saisir le numéro complet (ex. A-R305).' : '');
+      return;
+    }
+    equipement = d.equipement;
+    numeroCourant = equipement.numero;
+    modeHors = false;
+    afficherFormulaire();
+    if (ouvrirFicheAuChargement) { ouvrirFicheAuChargement = false; ouvrirFiche(); }
+  }
+
+  /* ---------- Accueil ---------- */
+  function afficherAccueil(message) {
+    el('recherche').value = numeroCourant;
+    el('errAccueil').textContent = message || '';
+    remplirSelect(el('lSite'), uniques(donnees.equipements.map(e => e.site)), 'Site…');
+    majListes('site');
+    montrer('secAccueil');
+  }
+  function groupe(e) { return e.piste || e.modele; }
+  function filtres(jusqua) {
+    const site = el('lSite').value, categorie = el('lCategorie').value, piste = el('lPiste').value;
+    return donnees.equipements.filter(e =>
+      (!site || e.site === site) &&
+      (jusqua === 'site' || !categorie || e.categorie === categorie) &&
+      (jusqua !== 'piste' || !piste || groupe(e) === piste));
+  }
+  function majListes(change) {
+    if (change === 'site') remplirSelect(el('lCategorie'), uniques(filtres('site').map(e => e.categorie)), 'Catégorie…');
+    if (change !== 'piste') {
+      const pistes = el('lCategorie').value ? uniques(filtres('categorie').map(groupe)) : [];
+      remplirSelect(el('lPiste'), pistes, 'Piste ou modèle…');
+      el('lPiste').hidden = pistes.length === 0;
+    }
+    const pret = el('lSite').value && el('lCategorie').value;
+    remplirSelect(el('lNumero'), pret ? filtres('piste').map(e => e.numero) : [], 'Numéro…');
+  }
+  el('lSite').onchange = function () { majListes('site'); };
+  el('lCategorie').onchange = function () { majListes('categorie'); };
+  el('lPiste').onchange = function () { majListes('piste'); };
+  el('btnRecherche').onclick = function () {
+    const saisie = el('recherche').value.trim();
+    if (!saisie) { el('errAccueil').textContent = 'Saisir un numéro.'; return; }
+    numeroCourant = saisie; charger();
+  };
+  el('btnListes').onclick = function () {
+    if (!el('lNumero').value) { el('errAccueil').textContent = 'Choisir un numéro dans la liste.'; return; }
+    numeroCourant = el('lNumero').value; charger();
+  };
+  el('btnHors').onclick = function () { equipement = null; modeHors = true; afficherFormulaire(); };
+
+  /* ---------- Scan QR intégré (Chrome Android) ---------- */
+  let p_flux, p_boucle;
+  function p_arreter() {
+    clearInterval(p_boucle);
+    if (p_flux) p_flux.getTracks().forEach(t => t.stop());
+    p_flux = null; el('video').style.display = 'none';
+  }
+  el('btnScan').onclick = async function () {
+    if (p_flux) return p_arreter();
+    if (!('BarcodeDetector' in window)) { el('errAccueil').textContent = 'Scan non supporté ici : saisir le numéro.'; return; }
+    const det = new BarcodeDetector({ formats: ['qr_code'] });
+    try { p_flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
+    catch (e) { el('errAccueil').textContent = 'Accès caméra refusé.'; return; }
+    const v = el('video'); v.srcObject = p_flux; v.style.display = 'block'; await v.play();
+    p_boucle = setInterval(async function () {
+      const r = await det.detect(v).catch(() => []);
+      const m = r.length && String(r[0].rawValue).match(/[ABFS]-[A-Z0-9]+/i);
+      if (m) { p_arreter(); numeroCourant = m[0].toUpperCase(); charger(); }
+    }, 300);
+  };
+
+  /* ---------- Formulaire de saisie ---------- */
+  function afficherFormulaire() {
+    el('titre').textContent = modeHors ? 'Hors équipement' : equipement.numero;
+    afficherLogos('logoSite', modeHors ? [] : donnees.logosEquipement);
+    el('infos').hidden = modeHors;
+    el('blocSiteHors').hidden = !modeHors;
+    if (modeHors) {
+      remplirSelect(el('siteHors'), donnees.sites, 'Aucun site précis');
+    } else {
+      el('site').textContent = equipement.site;
+      el('categorie').textContent = equipement.categorie;
+      el('modele').textContent = equipement.modele;
+      el('ligneModele').hidden = !equipement.modele;
+      el('piste').textContent = equipement.piste;
+      el('lignePiste').hidden = !equipement.piste;
+    }
+    remplirSelect(el('technicien'), donnees.techniciens, 'Choisir…');
+    const memorise = lire('technicien');
+    if (donnees.techniciens.indexOf(memorise) !== -1) el('technicien').value = memorise;
+    afficherAvec();
+    typeChoisi = '';
+    el('libelleType').textContent = modeHors ? 'Activité' : 'Type d\'action';
+    boutons(el('types'), modeHors ? donnees.activites : donnees.types, false, function (choix) {
+      typeChoisi = choix[0] || '';
+      el('errForm').textContent = '';
+      if (!modeHors && typeChoisi === donnees.typeEntretien) ouvrirEntretien();
+    });
+    el('duree').value = '';
+    boutonsDuree('durees', 'duree');
+    lister(el('histo'), modeHors ? [] : donnees.historique, false);
+    el('blocHisto').hidden = modeHors || donnees.total === 0;
+    el('btnFiche').textContent = 'Voir toute la fiche (' + donnees.total + ' intervention' + (donnees.total > 1 ? 's' : '') + ')';
+    el('btnChanger').textContent = modeHors ? 'Retour à l\'accueil' : 'Changer d\'équipement';
+    el('commentaire').value = '';
+    el('errForm').textContent = '';
+    el('btnEnregistrer').disabled = false;
+    montrer('secForm');
+  }
+  function afficherAvec() {
+    const principal = el('technicien').value;
+    avecChoisis = [];
+    boutons(el('avec'), donnees.techniciens.filter(t => t !== principal), true, function (choix) { avecChoisis = choix; });
+  }
+  el('technicien').onchange = afficherAvec;
+  function boutonsDuree(idZone, idChamp) {
+    const zone = el(idZone), champ = el(idChamp);
+    const accorder = function () {
+      Array.prototype.forEach.call(zone.children, c => c.classList.toggle('choisi', c.dataset.valeur === champ.value));
+    };
+    boutons(zone, DUREES.map(String), false, function (choix) { champ.value = choix[0] || ''; }, v => texteDuree(Number(v)));
+    champ.oninput = accorder;
+    accorder();
+  }
+  el('btnEnregistrer').onclick = function () {
+    const technicien = el('technicien').value;
+    const duree = Math.round(Number(el('duree').value));
+    if (!technicien) { el('errForm').textContent = 'Choisir le technicien.'; return; }
+    if (!typeChoisi) { el('errForm').textContent = modeHors ? 'Choisir l\'activité.' : 'Choisir le type d\'action.'; return; }
+    if (!(duree >= 1)) { el('errForm').textContent = 'Indiquer le temps passé.'; return; }
+    ecrire('technicien', technicien);
+    el('btnEnregistrer').disabled = true;
+    el('errForm').textContent = '';
+    const equipe = [technicien].concat(avecChoisis);
+    const resume = [modeHors ? 'Hors équipement' : equipement.numero, typeChoisi, texteDuree(duree), equipe.join(' + ')].join(' · ');
+    google.script.run
+      .withSuccessHandler(function (r) { confirmer(resume + (r && r.enAttente ? ' · en attente de réseau, envoi automatique' : ''), '', ''); })
+      .withFailureHandler(surErreur('errForm', 'secForm'))
+      .enregistrer(lire('codeEquipe'), {
+        hors: modeHors, numero: modeHors ? '' : equipement.numero,
+        site: modeHors ? el('siteHors').value : '', technicien: technicien, avec: avecChoisis,
+        type: typeChoisi, duree: duree, commentaire: el('commentaire').value
+      });
+  };
+  function confirmer(resume, rapport, alerte) {
+    el('resume').textContent = resume;
+    el('okRapport').hidden = !rapport;
+    el('lienRapport').href = rapport || '#';
+    el('okAlerte').textContent = alerte || '';
+    montrer('secOk');
+  }
+
+  /* ---------- Entretien annuel ---------- */
+  function ouvrirEntretien() {
+    const technicien = el('technicien').value;
+    if (!technicien) { annulerTypeEntretien(); el('errForm').textContent = 'Choisir d\'abord le technicien.'; return; }
+    el('entNumero').textContent = equipement.numero;
+    afficherLogos('entLogo', donnees.logosEquipement);
+    el('entQui').textContent = ['Entretien annuel', equipement.modele, [technicien].concat(avecChoisis).join(' + ')].filter(String).join(' · ');
+    const zone = el('entPoints');
+    zone.innerHTML = '';
+    etatPoints = donnees.points.map(point => {
+      const etat = { point: point, resultat: '', remarque: document.createElement('input') };
+      const bloc = document.createElement('div');
+      bloc.className = 'point';
+      const titre = document.createElement('p');
+      titre.textContent = point;
+      const choix = document.createElement('div');
+      choix.className = 'choix resultats';
+      etat.remarque.type = 'text';
+      etat.remarque.placeholder = 'Note (facultatif)';
+      etat.remarque.hidden = true;
+      boutons(choix, donnees.resultats, false, function (actif) {
+        etat.resultat = actif[0] || '';
+        etat.remarque.hidden = !etat.resultat;
+        el('errEntretien').textContent = '';
+      });
+      bloc.appendChild(titre); bloc.appendChild(choix); bloc.appendChild(etat.remarque);
+      zone.appendChild(bloc);
+      return etat;
+    });
+    el('entVide').hidden = etatPoints.length > 0;
+    el('duree2').value = el('duree').value;
+    boutonsDuree('durees2', 'duree2');
+    el('commentaire2').value = el('commentaire').value;
+    el('errEntretien').textContent = '';
+    el('btnEnregistrerEntretien').disabled = false;
+    montrer('secEntretien');
+  }
+  function annulerTypeEntretien() {
+    typeChoisi = '';
+    Array.prototype.forEach.call(el('types').children, c => c.classList.remove('choisi'));
+  }
+  el('btnRetourAction').onclick = function () { annulerTypeEntretien(); montrer('secForm'); };
+  el('btnEnregistrerEntretien').onclick = function () {
+    const restants = etatPoints.filter(p => !p.resultat).length;
+    const duree = Math.round(Number(el('duree2').value));
+    if (restants > 0) { el('errEntretien').textContent = 'Il reste ' + restants + ' point' + (restants > 1 ? 's' : '') + ' sans réponse.'; return; }
+    if (!(duree >= 1)) { el('errEntretien').textContent = 'Indiquer le temps passé.'; return; }
+    const technicien = el('technicien').value;
+    ecrire('technicien', technicien);
+    el('btnEnregistrerEntretien').disabled = true;
+    el('errEntretien').textContent = 'Enregistrement et création du rapport…';
+    google.script.run
+      .withSuccessHandler(function (r) {
+        el('errEntretien').textContent = '';
+        confirmer([equipement.numero, 'Entretien annuel', r.bilan, texteDuree(duree), [technicien].concat(avecChoisis).join(' + ')].join(' · '), r.rapport, r.alerte);
+      })
+      .withFailureHandler(surErreur('errEntretien', 'secEntretien'))
+      .enregistrerEntretien(lire('codeEquipe'), {
+        numero: equipement.numero, technicien: technicien, avec: avecChoisis, duree: duree,
+        commentaire: el('commentaire2').value,
+        points: etatPoints.map(p => ({ point: p.point, resultat: p.resultat, remarque: p.remarque.value }))
+      });
+  };
+
+  /* ---------- Historique et fiche ---------- */
+  function lister(zone, interventions, avecHeure) {
+    zone.innerHTML = '';
+    interventions.forEach(h => {
+      const div = document.createElement('div');
+      div.className = 'histo';
+      const titre = document.createElement('b');
+      const quand = avecHeure && h.heure ? h.date + ' ' + h.heure : h.date;
+      const type = h.resultat ? h.type + ' (' + h.resultat + ')' : h.type;
+      titre.textContent = [quand, type, h.technicien, texteDuree(h.duree)].filter(String).join(' · ');
+      div.appendChild(titre);
+      div.appendChild(document.createTextNode(h.commentaire));
+      if (h.rapport) {
+        const lien = document.createElement('a');
+        lien.href = h.rapport; lien.target = '_blank'; lien.rel = 'noopener';
+        lien.textContent = 'Rapport PDF';
+        if (h.commentaire) div.appendChild(document.createTextNode(' · '));
+        div.appendChild(lien);
+      }
+      zone.appendChild(div);
+    });
+  }
+  function ouvrirFiche() {
+    montrer('secCharge');
+    google.script.run
+      .withSuccessHandler(function (f) {
+        el('ficheNumero').textContent = f.equipement.numero;
+        afficherLogos('ficheLogo', f.logosEquipement);
+        el('ficheSite').textContent = f.equipement.site;
+        el('ficheCategorie').textContent = f.equipement.categorie;
+        el('ficheModele').textContent = f.equipement.modele;
+        el('ficheLigneModele').hidden = !f.equipement.modele;
+        el('fichePiste').textContent = f.equipement.piste;
+        el('ficheLignePiste').hidden = !f.equipement.piste;
+        const nb = f.interventions.length;
+        const total = f.interventions.reduce((s, i) => s + i.duree, 0);
+        el('ficheCompte').textContent = nb === 0 ? 'Aucune intervention enregistrée.'
+          : nb + ' intervention' + (nb > 1 ? 's' : '') + (total ? ', ' + texteDuree(total) + ' au total' : '');
+        lister(el('ficheListe'), f.interventions, true);
+        montrer('secFiche');
+      })
+      .withFailureHandler(surErreur('errForm', 'secForm'))
+      .chargerFiche(lire('codeEquipe'), equipement.numero);
+  }
+
+  /* ---------- Navigation ---------- */
+  function retourAccueil() { numeroCourant = ''; charger(); }
+  el('btnCode').onclick = function () {
+    const code = el('code').value.trim();
+    if (!code) { el('errCode').textContent = 'Saisir le code équipe.'; return; }
+    ecrire('codeEquipe', code);
+    el('errCode').textContent = '';
+    charger(); envoyerFile(); rafraichirCache();
+  };
+  el('btnFiche').onclick = ouvrirFiche;
+  el('btnRetour').onclick = function () { montrer('secForm'); };
+  el('btnChanger').onclick = retourAccueil;
+  el('btnAutre').onclick = retourAccueil;
+  el('btnMeme').onclick = function () { if (modeHors) afficherFormulaire(); else charger(); };
+
+  /* ---------- Commenter cette page ---------- */
+  el('btnCommenter').onclick = function () {
+    el('avisLibelle').textContent = 'Votre commentaire sur la page « ' + nomVue() + ' »';
+    el('avisErreur').textContent = ''; el('avisMerci').textContent = '';
+    el('avisBloc').hidden = false;
+    el('avisTexte').focus();
+  };
+  el('btnAvisAnnuler').onclick = function () { el('avisBloc').hidden = true; };
+  el('btnAvisEnvoyer').onclick = function () {
+    const texte = el('avisTexte').value.trim();
+    if (!texte) { el('avisErreur').textContent = 'Écrire un commentaire.'; return; }
+    el('btnAvisEnvoyer').disabled = true;
+    el('avisErreur').textContent = '';
+    google.script.run
+      .withSuccessHandler(function () {
+        el('btnAvisEnvoyer').disabled = false;
+        el('avisTexte').value = '';
+        el('avisBloc').hidden = true;
+        el('avisMerci').textContent = 'Merci, commentaire enregistré.';
+      })
+      .withFailureHandler(function (err) {
+        el('btnAvisEnvoyer').disabled = false;
+        const message = (err && err.message) || String(err);
+        el('avisErreur').textContent = message.indexOf('CODE') !== -1 ? 'Code équipe incorrect : recharger la page.' : message;
+      })
+      .commenterPage(lire('codeEquipe'), {
+        technicien: el('technicien').value || lire('technicien'),
+        page: nomVue(),
+        equipement: (!modeHors && equipement && vueCourante !== 'secAccueil') ? equipement.numero : '',
+        commentaire: texte
+      });
+  };
+
+  /* ---------- Démarrage ---------- */
+  afficherLogos('logos', LOGOS);
+  executer('logosPage', []).then(l => { p_set('logos', l); afficherLogos('logos', l); }).catch(() => {});
+  addEventListener('online', function () { envoyerFile(); rafraichirCache(); });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  charger();
+  envoyerFile();
+  rafraichirCache();
 </script>
-</body></html>
+</body>
+</html>
