@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b5ea8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>Suivi neige de culture</title>
+<style>
+:root{color-scheme:light dark;--c:#0b5ea8}
+*{box-sizing:border-box}
+body{font:16px system-ui,sans-serif;margin:0 auto;padding:12px;max-width:560px}
+h1{font-size:1.2rem;margin:.2rem 0 .8rem}
+label{display:block;margin:.7rem 0 .2rem;font-weight:600}
+input,select,textarea,button{width:100%;font:inherit;padding:.7rem;border-radius:8px;border:1px solid #8886}
+button{background:var(--c);color:#fff;border:0;font-weight:600;margin-top:.6rem}
+#fiche{padding:.6rem;border-radius:8px;background:#8882;margin-top:.6rem}
+#video{width:100%;border-radius:8px;display:none;margin-top:.6rem}
+#etat{font-size:.85rem;opacity:.8;margin-top:1rem}
+</style></head><body>
+<h1>Suivi neige de culture</h1>
+<button id="bScan">Scanner un QR code</button>
+<video id="video" playsinline muted></video>
+<label for="num">Numéro d'équipement</label>
+<input id="num" list="liste" autocomplete="off" placeholder="ex. A-R305">
+<datalist id="liste"></datalist>
+<div id="fiche" hidden></div>
+<div id="saisie" hidden>
+  <label for="tech">Technicien</label><select id="tech"></select>
+  <label for="act">Type d'action</label><select id="act"></select>
+  <label for="temps">Temps passé (heures)</label>
+  <input id="temps" type="text" inputmode="decimal" placeholder="ex. 1,5">
+  <label for="com">Commentaire</label><textarea id="com" rows="3"></textarea>
+  <button id="bSave">Enregistrer</button>
+</div>
+<button id="bSync" style="background:#8883;color:inherit">Synchroniser</button>
+<div id="etat"></div>
+<script>
+// URL de déploiement de l'API Apps Script (…/exec) — à renseigner
+const API_URL='COLLER_URL_APPS_SCRIPT';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+let cfg=load('cfg',{techniciens:[],actions:[],equipements:[]});
+let file=load('file',[]);
+// Repère un numéro préfixé par site (A-, B-, F-, S-) dans un texte ou une URL
+const extraire=s=>(String(s).match(/\b[ABFS]-[A-Z0-9]+\b/i)||[])[0]?.toUpperCase();
+
+function rendreCfg(){
+  $('liste').innerHTML=cfg.equipements.map(e=>`<option value="${esc(e.numero)}">`).join('');
+  $('tech').innerHTML=cfg.techniciens.map(t=>`<option>${esc(t)}</option>`).join('');
+  $('act').innerHTML=cfg.actions.map(a=>`<option>${esc(a)}</option>`).join('');
+  $('tech').value=localStorage.getItem('tech')||cfg.techniciens[0]||'';
+}
+function trouver(){
+  const n=$('num').value.trim().toUpperCase();
+  const e=cfg.equipements.find(x=>String(x.numero).toUpperCase()===n);
+  $('fiche').hidden=$('saisie').hidden=!e;
+  if(e)$('fiche').innerHTML=`<b>${esc(e.numero)}</b><br>${esc(e.site)} · ${esc(e.categorie)}${e.detail?' · '+esc(e.detail):''}`;
+}
+function etat(){
+  const m=load('maj',null);
+  $('etat').textContent=(navigator.onLine?'En ligne':'Hors ligne')+' · '+file.length+' saisie(s) en attente'+(m?' · config du '+new Date(m).toLocaleString('fr-FR'):'');
+}
+
+// --- Scan QR (BarcodeDetector, Chrome Android) ---
+let flux,boucle;
+function arreter(){clearInterval(boucle);flux&&flux.getTracks().forEach(t=>t.stop());flux=null;$('video').style.display='none'}
+async function scanner(){
+  if(flux)return arreter();
+  if(!('BarcodeDetector' in window))return alert('Scan non supporté sur ce navigateur : saisis le numéro.');
+  const det=new BarcodeDetector({formats:['qr_code']});
+  try{flux=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})}catch{return alert('Accès caméra refusé.')}
+  const v=$('video');v.srcObject=flux;v.style.display='block';await v.play();
+  boucle=setInterval(async()=>{
+    const r=await det.detect(v).catch(()=>[]);
+    const n=r.length&&extraire(r[0].rawValue);
+    if(n){arreter();$('num').value=n;trouver()}
+  },300);
+}
+
+// --- Saisie (file d'attente locale) et synchronisation ---
+function enregistrer(){
+  const numero=$('num').value.trim().toUpperCase();
+  const temps=parseFloat($('temps').value.replace(',','.'));
+  if(!numero||!$('tech').value||!$('act').value||!(temps>=0))return alert('Complète technicien, action et temps (en heures).');
+  localStorage.setItem('tech',$('tech').value);
+  file.push({id:crypto.randomUUID(),horodatage:new Date().toISOString(),numero,technicien:$('tech').value,action:$('act').value,temps_h:temps,commentaire:$('com').value.trim()});
+  save('file',file);
+  $('temps').value=$('com').value=$('num').value='';
+  trouver();etat();sync();
+}
+function code(){let c=localStorage.getItem('code');if(!c){c=(prompt('Code équipe ?')||'').trim();if(c)localStorage.setItem('code',c)}return c}
+async function sync(){
+  if(!navigator.onLine||API_URL.startsWith('COLLER'))return etat();
+  const k=code();if(!k)return etat();
+  try{
+    if(file.length){
+      // text/plain évite la requête préalable CORS avec Apps Script
+      const r=await(await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saisies',code:k,items:file})})).json();
+      if(r.erreur==='code'){localStorage.removeItem('code');return etat()}
+      if(r.ok){file=file.filter(x=>!r.ids.includes(x.id));save('file',file)}
+    }
+    const c=await(await fetch(API_URL+'?action=config&code='+encodeURIComponent(k),{cache:'no-store'})).json();
+    if(c.erreur==='code'){localStorage.removeItem('code');return etat()}
+    if(c.equipements){cfg=c;save('cfg',c);save('maj',new Date().toISOString());rendreCfg();trouver()}
+  }catch(e){}
+  etat();
+}
+
+$('bScan').onclick=scanner;$('bSave').onclick=enregistrer;$('bSync').onclick=sync;
+$('num').addEventListener('input',trouver);
+addEventListener('online',sync);addEventListener('offline',etat);
+const depuisUrl=extraire(location.search);if(depuisUrl)$('num').value=depuisUrl;
+rendreCfg();trouver();etat();sync();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+</body></html>
