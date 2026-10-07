@@ -102,9 +102,9 @@
     <div class="choix" id="avec"></div>
     <span class="libelle" id="libelleType">Type d'action</span>
     <div class="choix" id="types"></div>
-    <label for="duree">Temps passé (minutes)</label>
+    <label for="duree">Temps passé (heures)</label>
     <div class="choix serre" id="durees"></div>
-    <input id="duree" type="number" inputmode="numeric" min="1" placeholder="Autre durée, en minutes">
+    <input id="duree" type="number" inputmode="decimal" step="0.25" min="0.1" placeholder="Autre durée, en heures">
     <label for="commentaire">Commentaire</label>
     <textarea id="commentaire" rows="3"></textarea>
     <p class="erreur" id="errForm"></p>
@@ -126,9 +126,9 @@
     <div id="entPoints"></div>
     <p class="note" id="entVide" hidden>Aucun point de contrôle défini pour cette catégorie (onglet « Entretien annuel » du fichier de suivi). L'entretien peut quand même être enregistré.</p>
     <hr>
-    <label for="duree2">Temps passé (minutes)</label>
+    <label for="duree2">Temps passé (heures)</label>
     <div class="choix serre" id="durees2"></div>
-    <input id="duree2" type="number" inputmode="numeric" min="1" placeholder="Autre durée, en minutes">
+    <input id="duree2" type="number" inputmode="decimal" step="0.25" min="0.1" placeholder="Autre durée, en heures">
     <label for="commentaire2">Commentaire général</label>
     <textarea id="commentaire2" rows="3"></textarea>
     <p class="erreur" id="errEntretien"></p>
@@ -251,7 +251,7 @@
 
   /* ===== Application (reprise de la page de saisie) ===== */
   const SECTIONS = ['secCode', 'secCharge', 'secAccueil', 'secForm', 'secEntretien', 'secFiche', 'secOk'];
-  const DUREES = [15, 30, 60, 120];
+  const DUREES = [0.25, 0.5, 1, 2];
 
   let numeroCourant = NUMERO_SCANNE;
   let ouvrirFicheAuChargement = (VUE === 'fiche');
@@ -287,12 +287,7 @@
     });
     zone.hidden = !(images && images.length);
   }
-  function texteDuree(minutes) {
-    if (!minutes) return '';
-    const h = Math.floor(minutes / 60), m = minutes % 60;
-    if (h === 0) return m + ' min';
-    return h + ' h' + (m ? ' ' + (m < 10 ? '0' + m : m) : '');
-  }
+  function texteDuree(h) { return h ? String(Math.round(h * 100) / 100).replace('.', ',') + ' h' : ''; }
   function remplirSelect(select, valeurs, premier) {
     select.innerHTML = '';
     [''].concat(valeurs).forEach(v => {
@@ -465,7 +460,7 @@
   function boutonsDuree(idZone, idChamp) {
     const zone = el(idZone), champ = el(idChamp);
     const accorder = function () {
-      Array.prototype.forEach.call(zone.children, c => c.classList.toggle('choisi', c.dataset.valeur === champ.value));
+      Array.prototype.forEach.call(zone.children, c => c.classList.toggle('choisi', Number(c.dataset.valeur) === Number(champ.value)));
     };
     boutons(zone, DUREES.map(String), false, function (choix) { champ.value = choix[0] || ''; }, v => texteDuree(Number(v)));
     champ.oninput = accorder;
@@ -473,10 +468,10 @@
   }
   el('btnEnregistrer').onclick = function () {
     const technicien = el('technicien').value;
-    const duree = Math.round(Number(el('duree').value));
+    const duree = Math.round(Number(el('duree').value) * 100) / 100;
     if (!technicien) { el('errForm').textContent = 'Choisir le technicien.'; return; }
     if (!typeChoisi) { el('errForm').textContent = modeHors ? 'Choisir l\'activité.' : 'Choisir le type d\'action.'; return; }
-    if (!(duree >= 1)) { el('errForm').textContent = 'Indiquer le temps passé.'; return; }
+    if (!(duree >= 0.1)) { el('errForm').textContent = 'Indiquer le temps passé.'; return; }
     ecrire('technicien', technicien);
     el('btnEnregistrer').disabled = true;
     el('errForm').textContent = '';
@@ -543,9 +538,9 @@
   el('btnRetourAction').onclick = function () { annulerTypeEntretien(); montrer('secForm'); };
   el('btnEnregistrerEntretien').onclick = function () {
     const restants = etatPoints.filter(p => !p.resultat).length;
-    const duree = Math.round(Number(el('duree2').value));
+    const duree = Math.round(Number(el('duree2').value) * 100) / 100;
     if (restants > 0) { el('errEntretien').textContent = 'Il reste ' + restants + ' point' + (restants > 1 ? 's' : '') + ' sans réponse.'; return; }
-    if (!(duree >= 1)) { el('errEntretien').textContent = 'Indiquer le temps passé.'; return; }
+    if (!(duree >= 0.1)) { el('errEntretien').textContent = 'Indiquer le temps passé.'; return; }
     const technicien = el('technicien').value;
     ecrire('technicien', technicien);
     el('btnEnregistrerEntretien').disabled = true;
