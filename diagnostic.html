@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagnostic</title>
+<style>body{font:16px system-ui,sans-serif;max-width:520px;margin:0 auto;padding:16px}input,button{width:100%;font:inherit;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #888}button{background:#1e4f77;color:#fff;border:0}pre{white-space:pre-wrap;background:#eef2f6;padding:10px;border-radius:8px}</style></head><body>
+<h1>Diagnostic de l'appli</h1>
+<input id="code" type="password" placeholder="Code équipe">
+<button id="test">Lancer le test</button>
+<button id="reset" style="background:#a32d2d">Réinitialiser l'appli (vider le cache)</button>
+<pre id="sortie">En attente.</pre>
+<script>
+const API_URL='https://script.google.com/macros/s/AKfycbyakyceKC0pY2xuRd3642-aKrIIyS3NVMu5ML6fSOVXbp0uoYJtl2PkMhpZBiC1zzsy/exec';
+const out=t=>{document.getElementById('sortie').textContent+='\n'+t};
+async function appel(fn,args){
+  let r;
+  try{r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({fn:fn,args:args})})}
+  catch(e){throw new Error('Serveur injoignable (réseau, ou accès du déploiement non réglé sur « Tout le monde »).')}
+  const t=await r.text();
+  try{return JSON.parse(t)}catch(e){throw new Error('Réponse HTML au lieu de JSON : le déploiement n\'a pas le nouveau code (doPost absent). Début : '+t.slice(0,80).replace(/\s+/g,' '))}
+}
+document.getElementById('test').onclick=async()=>{
+  document.getElementById('sortie').textContent='Test en cours…';
+  try{
+    const a=await appel('logosPage',[]);
+    out('1. Serveur joint : '+(a.ok?'OK':'ERREUR '+a.erreur));
+    const b=await appel('chargerDonnees',[document.getElementById('code').value.trim(),'']);
+    if(b.ok)out('2. Données chargées : OK, '+b.resultat.equipements.length+' équipements, '+b.resultat.techniciens.length+' techniciens, types : '+b.resultat.types.join(', '));
+    else out('2. Données : ERREUR « '+b.erreur+' »'+(b.erreur==='CODE'?' (code équipe incorrect)':''));
+  }catch(e){out('ÉCHEC : '+e.message)}
+  const c=window.caches?await caches.keys():[];
+  out('3. Version de l\'appli en cache : '+(c.join(', ')||'aucune'));
+};
+document.getElementById('reset').onclick=async()=>{
+  const regs=navigator.serviceWorker?await navigator.serviceWorker.getRegistrations():[];
+  for(const r of regs)await r.unregister();
+  for(const k of await caches.keys())await caches.delete(k);
+  localStorage.clear();
+  document.getElementById('sortie').textContent='Appli réinitialisée. Rouvre l\'adresse de l\'appli, puis ressaisis le code équipe.';
+};
+</script></body></html>
