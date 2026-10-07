@@ -182,6 +182,10 @@
   const VUE = p_url.get('page') === 'fiche' ? 'fiche' : '';
   let LOGOS = p_get('logos', []);
 
+  // Identifiant unique d'une saisie (crypto.randomUUID absent des anciens iPhone)
+  const p_id = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+    : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+
   async function appel(fn, args) {
     let r;
     try {
@@ -193,7 +197,7 @@
   }
 
   async function executer(fn, args) {
-    if (fn === 'enregistrer') { args[1].idPwa = crypto.randomUUID(); args[1].horodatage = new Date().toISOString(); }
+    if (fn === 'enregistrer') { args[1].idPwa = p_id(); args[1].horodatage = new Date().toISOString(); }
     try {
       const res = await appel(fn, args);
       if (fn === 'chargerDonnees' && res.equipements && res.equipements.length) p_set('accueil', res);

@@ -1,5 +1,5 @@
 // Service worker : l'appli s'ouvre hors ligne. Incrémenter V pour forcer une mise à jour du cache.
-const V='suivi-v4',FICHIERS=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
+const V='suivi-v5',FICHIERS=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>c.addAll(FICHIERS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==V).map(n=>caches.delete(n)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
