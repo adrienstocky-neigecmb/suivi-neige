@@ -174,7 +174,7 @@
 
 <script>
   /* ===== Couche PWA : google.script.run remplacé par fetch, file d'attente hors ligne ===== */
-  const API_URL = 'https://script.google.com/macros/s/AKfycbyakyceKC0pY2xuRd3642-aKrIIyS3NVMu5ML6fSOVXbp0uoYJtl2PkMhpZBiC1zzsy/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbz0FpGzupAANW-ahKIVuA5SU8JUruSEjbn598SlI00KWiTMD17C49xjer9ULXJhoGO_/exec';
   const p_get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
   const p_set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   const p_url = new URLSearchParams(location.search);
