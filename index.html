@@ -111,7 +111,7 @@
     <button class="principal" id="btnEnregistrer">Enregistrer</button>
     <p class="note">Date et heure ajoutées automatiquement.</p>
     <div id="blocHisto" hidden>
-      <h2>Dernières interventions</h2>
+      <h2 id="titreHisto">Dernières interventions</h2>
       <div id="histo"></div>
       <button class="lien" id="btnFiche">Voir toute la fiche</button>
     </div>
@@ -139,7 +139,7 @@
   <section id="secFiche" class="carte" hidden>
     <div class="logosEq" id="ficheLogo" hidden></div>
     <p class="numero" id="ficheNumero"></p>
-    <div class="infos">
+    <div class="infos" id="ficheInfos">
       <div><span>Site</span><span id="ficheSite"></span></div>
       <div><span>Catégorie</span><span id="ficheCategorie"></span></div>
       <div id="ficheLigneModele"><span>Modèle</span><span id="ficheModele"></span></div>
@@ -260,6 +260,7 @@
   let numeroCourant = NUMERO_SCANNE;
   let ouvrirFicheAuChargement = (VUE === 'fiche');
   let donnees = null, equipement = null, modeHors = false, typeChoisi = '', avecChoisis = [], etatPoints = [];
+  let horsInterventions = [], jetonHors = 0;
 
   const el = id => document.getElementById(id);
   let vueCourante = '';
@@ -273,6 +274,7 @@
   }
   function nomVue() {
     if (vueCourante === 'secForm') return modeHors ? 'Saisie hors équipement' : 'Saisie';
+    if (vueCourante === 'secFiche' && modeHors) return 'Historique hors équipement';
     return { secAccueil: 'Accueil', secEntretien: 'Entretien annuel',
              secFiche: 'Fiche équipement', secOk: 'Confirmation' }[vueCourante] || vueCourante;
   }
@@ -446,9 +448,12 @@
     });
     el('duree').value = '';
     boutonsDuree('durees', 'duree');
-    lister(el('histo'), modeHors ? [] : donnees.historique, false);
-    el('blocHisto').hidden = modeHors || donnees.total === 0;
-    el('btnFiche').textContent = 'Voir toute la fiche (' + donnees.total + ' intervention' + (donnees.total > 1 ? 's' : '') + ')';
+    if (modeHors) {
+      el('blocHisto').hidden = true;
+      chargerHistoHors();
+    } else {
+      afficherHisto(donnees.historique, donnees.total);
+    }
     el('btnChanger').textContent = modeHors ? 'Retour à l\'accueil' : 'Changer d\'équipement';
     el('commentaire').value = '';
     el('errForm').textContent = '';
@@ -571,7 +576,7 @@
       const titre = document.createElement('b');
       const quand = avecHeure && h.heure ? h.date + ' ' + h.heure : h.date;
       const type = h.resultat ? h.type + ' (' + h.resultat + ')' : h.type;
-      titre.textContent = [quand, type, h.technicien, texteDuree(h.duree)].filter(String).join(' · ');
+      titre.textContent = [quand, type, h.lieu || '', h.technicien, texteDuree(h.duree)].filter(String).join(' · ');
       div.appendChild(titre);
       div.appendChild(document.createTextNode(h.commentaire));
       if (h.rapport) {
@@ -584,11 +589,53 @@
       zone.appendChild(div);
     });
   }
+  function afficherHisto(liste, total) {
+    el('titreHisto').textContent = modeHors ? 'Dernières activités hors équipement' : 'Dernières interventions';
+    lister(el('histo'), liste, false);
+    el('blocHisto').hidden = total === 0;
+    el('btnFiche').textContent = modeHors
+      ? 'Voir tout (' + total + ' activité' + (total > 1 ? 's' : '') + ')'
+      : 'Voir toute la fiche (' + total + ' intervention' + (total > 1 ? 's' : '') + ')';
+  }
+
+  /* Hors équipement : 5 dernières activités + accès à tout l'historique */
+  function chargerHistoHors(suite) {
+    const jeton = ++jetonHors;
+    google.script.run
+      .withSuccessHandler(function (r) {
+        if (jeton !== jetonHors || !modeHors) return;
+        horsInterventions = (r && r.interventions) || [];
+        if (suite) suite(); else afficherHisto(horsInterventions.slice(0, 5), horsInterventions.length);
+      })
+      .withFailureHandler(function () {
+        // Hors ligne ou serveur sans chargerHors : la saisie reste possible, sans historique
+        if (jeton === jetonHors && modeHors && suite) suite();
+      })
+      .chargerHors(lire('codeEquipe'));
+  }
+  function ouvrirFicheHors() {
+    montrer('secCharge');
+    chargerHistoHors(function () {
+      el('ficheNumero').textContent = 'Hors équipement';
+      afficherLogos('ficheLogo', []);
+      el('ficheInfos').hidden = true;
+      const nb = horsInterventions.length;
+      const total = horsInterventions.reduce((s, i) => s + i.duree * (i.nbTechniciens || 1), 0);
+      el('ficheCompte').textContent = nb === 0 ? 'Aucune activité hors équipement enregistrée.'
+        : nb + ' activité' + (nb > 1 ? 's' : '') + (total ? ', ' + texteDuree(total) + ' cumulées (tous techniciens)' : '');
+      lister(el('ficheListe'), horsInterventions, true);
+      el('btnRetour').textContent = 'Saisir une activité';
+      montrer('secFiche');
+    });
+  }
+
   function ouvrirFiche() {
     montrer('secCharge');
     google.script.run
       .withSuccessHandler(function (f) {
         el('ficheNumero').textContent = f.equipement.numero;
+        el('ficheInfos').hidden = false;
+        el('btnRetour').textContent = 'Saisir une intervention';
         afficherLogos('ficheLogo', f.logosEquipement);
         el('ficheSite').textContent = f.equipement.site;
         el('ficheCategorie').textContent = f.equipement.categorie;
@@ -616,7 +663,7 @@
     el('errCode').textContent = '';
     charger(); envoyerFile(); rafraichirCache();
   };
-  el('btnFiche').onclick = ouvrirFiche;
+  el('btnFiche').onclick = function () { if (modeHors) ouvrirFicheHors(); else ouvrirFiche(); };
   el('btnRetour').onclick = function () { montrer('secForm'); };
   el('btnChanger').onclick = retourAccueil;
   el('btnAutre').onclick = retourAccueil;
