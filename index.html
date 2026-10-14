@@ -95,6 +95,10 @@
     <div id="blocSiteHors" hidden>
       <label for="siteHors">Site (facultatif)</label>
       <select id="siteHors"></select>
+      <div id="blocPisteHors" hidden>
+        <label for="pisteHors">Piste (facultatif)</label>
+        <select id="pisteHors"></select>
+      </div>
     </div>
     <label for="technicien">Technicien</label>
     <select id="technicien"></select>
@@ -261,6 +265,7 @@
   let ouvrirFicheAuChargement = (VUE === 'fiche');
   let donnees = null, equipement = null, modeHors = false, typeChoisi = '', avecChoisis = [], etatPoints = [];
   let horsInterventions = [], jetonHors = 0;
+  let pistesHors = p_get('pistesHors', {});   // { site: [pistes] }, gardé pour le hors ligne
 
   const el = id => document.getElementById(id);
   let vueCourante = '';
@@ -427,6 +432,7 @@
     el('blocSiteHors').hidden = !modeHors;
     if (modeHors) {
       remplirSelect(el('siteHors'), donnees.sites, 'Aucun site précis');
+      majPisteHors();
     } else {
       el('site').textContent = equipement.site;
       el('categorie').textContent = equipement.categorie;
@@ -466,6 +472,15 @@
     boutons(el('avec'), donnees.techniciens.filter(t => t !== principal), true, function (choix) { avecChoisis = choix; });
   }
   el('technicien').onchange = afficherAvec;
+  /* Piste facultative, proposée seulement quand le site choisi a des pistes */
+  function majPisteHors() {
+    const avant = el('pisteHors').value;
+    const liste = pistesHors[el('siteHors').value] || [];
+    remplirSelect(el('pisteHors'), liste, 'Aucune piste précise');
+    if (liste.indexOf(avant) !== -1) el('pisteHors').value = avant;
+    el('blocPisteHors').hidden = liste.length === 0;
+  }
+  el('siteHors').onchange = majPisteHors;
   function boutonsDuree(idZone, idChamp) {
     const zone = el(idZone), champ = el(idChamp);
     const accorder = function () {
@@ -485,13 +500,16 @@
     el('btnEnregistrer').disabled = true;
     el('errForm').textContent = '';
     const equipe = [technicien].concat(avecChoisis);
-    const resume = [modeHors ? 'Hors équipement' : equipement.numero, typeChoisi, texteDuree(duree), equipe.join(' + ')].join(' · ');
+    const siteHors = modeHors ? el('siteHors').value : '';
+    const pisteHors = (modeHors && siteHors && !el('blocPisteHors').hidden) ? el('pisteHors').value : '';
+    const quoi = modeHors ? ['Hors équipement', siteHors, pisteHors].filter(String).join(' – ') : equipement.numero;
+    const resume = [quoi, typeChoisi, texteDuree(duree), equipe.join(' + ')].join(' · ');
     google.script.run
       .withSuccessHandler(function (r) { confirmer(resume + (r && r.enAttente ? ' · en attente de réseau, envoi automatique' : ''), '', ''); })
       .withFailureHandler(surErreur('errForm', 'secForm'))
       .enregistrer(lire('codeEquipe'), {
         hors: modeHors, numero: modeHors ? '' : equipement.numero,
-        site: modeHors ? el('siteHors').value : '', technicien: technicien, avec: avecChoisis,
+        site: siteHors, piste: pisteHors, technicien: technicien, avec: avecChoisis,
         type: typeChoisi, duree: duree, commentaire: el('commentaire').value
       });
   };
@@ -603,6 +621,10 @@
     const jeton = ++jetonHors;
     google.script.run
       .withSuccessHandler(function (r) {
+        if (r && r.pistes) {
+          pistesHors = r.pistes; p_set('pistesHors', r.pistes);
+          if (modeHors) majPisteHors();
+        }
         if (jeton !== jetonHors || !modeHors) return;
         horsInterventions = (r && r.interventions) || [];
         if (suite) suite(); else afficherHisto(horsInterventions.slice(0, 5), horsInterventions.length);
